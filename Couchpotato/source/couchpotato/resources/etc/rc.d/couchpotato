@@ -1,0 +1,80 @@
+#!/bin/sh
+#
+# PROVIDE: couchpotato
+# REQUIRE: NETWORKING SERVERS DAEMON ldconfig resolv
+
+. /etc/rc.subr
+name="couchpotato"
+rcvar=`set_rcvar`
+
+: ${couchpotato_enable:="NO"}
+: ${couchpotato_user:="media"}
+program_dir=/usr/pbi/$name-$(uname -m)
+pidfile=$program_dir/data/$name.pid
+
+start_precmd="prestart"
+stop_cmd="stop"
+stop_postcmd="poststop"
+status_cmd="status"
+command="$program_dir/bin/python"
+command_args="$program_dir/CouchPotato/CouchPotato.py --config_file $program_dir/data/config.ini --data_dir $program_dir/data/ --pid_file $pidfile --daemon"
+
+prestart() {
+	if [ -f $pidfile ]; then
+		if [ `pgrep -F $pidfile` ]; then
+			pid=`pgrep -F $pidfile`
+			echo "$name is already running as $pid"
+			exit 1
+		else
+			rm $pidfile
+			echo "removing stale pidfile"
+		fi
+	fi
+}
+
+stop() {
+        username=`grep -m 1 username $program_dir/data/config.ini | awk '{ print $3}'`
+        password=`grep -m 1 password $program_dir/data/config.ini | awk '{ print $3}'`
+        api=`grep -m 1 api_key $program_dir/data/config.ini | awk '{ print $3}'`
+        port=`grep -m 1 port $program_dir/data/config.ini | tr -dc '[0-9]'`
+        base=`grep -m 1 url_base $program_dir/data/config.ini | awk '{ print $3}'`
+
+        if [ -z $password ];then
+                fetch -o /dev/null http://127.0.0.1:$port/$base/api/$api/app.shutdown/
+        else
+                fetch -o /dev/null "http://127.0.0.1:$port/$base/api/$api/app.shutdown/?p=$password&u=$username"
+        fi
+}
+
+poststop() {
+	count=0
+        while [ -f $pidfile ] && [ $count -lt 10 ]; do
+                sleep 1
+                let count=count+1
+        done
+	if [ -f $pidfile ]; then
+		if [ `pgrep -F $pidfile` ]; then
+			pid=`pgrep -F $pidfile`
+			kill $pid
+		else
+			rm $pidfile
+			echo "removing stale pidfile"
+		fi
+	fi
+}
+
+status() {
+	if [ -f $pidfile ]; then
+		if [ `pgrep -F $pidfile` ]; then
+			pid=`pgrep -F $pidfile`
+			echo "$name is running as $pid"
+		else
+			echo "$name is not running"
+		fi
+	else
+		echo "$name is not running"
+	fi
+}
+
+load_rc_config ${name}
+run_rc_command "$1"
