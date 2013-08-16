@@ -38,3 +38,11 @@ mv ${sabnzbd_pbi_path}/sabnzbd.ini ${sabnzbd_pbi_path}/sabnzbd/sabnzbd.ini
 #Get IP and replace the host of the sabnzbd.ini
 myipaddr=$(ifconfig  | grep -E 'inet.[0-9]' | grep -v '127.0.0.1' | awk '{ print $2}')
 sed -ie 's/host = localhost/host = '${myipaddr}'/' ${sabnzbd_pbi_path}/sabnzbd/sabnzbd.ini
+
+ln -s /usr/pbi/sabnzbdplus-amd64/bin/unrar /usr/local/bin/unrar
+ln -s /usr/pbi/sabnzbdplus-amd64/bin/par2 /usr/local/bin/par2
+ln -s /usr/pbi/sabnzbdplus-amd64/bin/par2create /usr/local/bin/par2create
+ln -s /usr/pbi/sabnzbdplus-amd64/bin/par2repair /usr/local/bin/par2repair
+ln -s /usr/pbi/sabnzbdplus-amd64/bin/par2verify /usr/local/bin/par2verify
+
+
