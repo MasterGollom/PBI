@@ -1,0 +1,91 @@
+#!/bin/sh
+#
+# PROVIDE: sickbeard
+# REQUIRE: NETWORKING SERVERS DAEMON ldconfig resolv
+
+. /etc/rc.subr
+name="sickbeard"
+rcvar=`set_rcvar`
+
+: ${sickbeard_enable:="NO"}
+: ${sickbeard_user:="_sickbeard"}
+program_dir=/usr/pbi/$name-$(uname -m)
+pidfile=$program_dir/data/$name.pid
+
+start_precmd="prestart"
+stop_cmd="stop"
+stop_postcmd="poststop"
+status_cmd="status"
+command="$program_dir/bin/python"
+command_args="$program_dir/SickBeard/SickBeard.py --config $program_dir/data/config.ini --datadir $program_dir/data/ --daemon --pidfile $pidfile"
+
+prestart() {
+	if [ -f $pidfile ]; then
+		if [ `pgrep -F $pidfile` ]; then
+			pid=`pgrep -F $pidfile`
+			echo "$name is already running as $pid"
+			exit 1
+		else
+			rm $pidfile
+			echo "removing stale pidfile"
+		fi
+	fi
+}
+
+stop() {
+        username=`grep web_username $program_dir/data/config.ini | awk '{ print $3}'`
+        username="${username%\"}"
+        username="${username#\"}"
+        password=`grep web_password $program_dir/data/config.ini | awk '{ print $3}'`
+        password="${password%\"}"
+        password="${password#\"}"
+        port=`grep web_port $program_dir/data/config.ini | tr -dc '[0-9]'`
+        base=`grep -m 1 web_root $program_dir/data/config.ini | awk '{ print $3}'`
+        base="${base%\"}"
+        base="${base#\"}"
+        protocol=`grep enable_https $program_dir/data/config.ini | tr -dc '[0-9]'`
+
+        if [ $protocol = 0 ]; then
+                protocol=http
+        else
+                protocol=https
+        fi
+        if [ -z $password ];then
+                fetch -o /dev/null $protocol://127.0.0.1:$port$base/home/shutdown/
+        else
+                fetch -o /dev/null $protocol://$username:$password@127.0.0.1:$port$base/home/shutdown/
+        fi
+}
+
+poststop() {
+	count=0
+        while [ -f $pidfile ] && [ $count -lt 10 ]; do
+                sleep 1
+                let count=count+1
+        done
+	if [ -f $pidfile ]; then
+		if [ `pgrep -F $pidfile` ]; then
+			pid=`pgrep -F $pidfile`
+			kill $pid
+		else
+			rm $pidfile
+			echo "removing stale pidfile"
+		fi
+	fi
+}
+
+status() {
+	if [ -f $pidfile ]; then
+		if [ `pgrep -F $pidfile` ]; then
+			pid=`pgrep -F $pidfile`
+			echo "$name is running as $pid"
+		else
+			echo "$name is not running"
+		fi
+	else
+		echo "$name is not running"
+	fi
+}
+
+load_rc_config ${name}
+run_rc_command "$1"

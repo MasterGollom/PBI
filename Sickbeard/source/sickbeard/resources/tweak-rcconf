@@ -1,0 +1,8 @@
+#!/bin/sh
+
+program_dir=/usr/pbi/sickbeard-$(uname -m)
+tmpfile=$(mktemp /tmp/.XXXXXX)
+
+grep -v 'sickbeard_' /etc/rc.conf > ${tmpfile}
+cat ${program_dir}/etc/rc.conf >> ${tmpfile}
+mv ${tmpfile} /etc/rc.conf
